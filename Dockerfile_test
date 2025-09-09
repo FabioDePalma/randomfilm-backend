@@ -1,0 +1,57 @@
+#FROM eclipse-temurin:21-jdk as dev
+#
+#WORKDIR /app
+#
+#COPY .mvn .mvn
+#COPY mvnw pom.xml ./
+#
+#RUN ./mvnw dependency:go-offline -B \
+#  -Dmaven.transfer.listener=org.apache.maven.cli.transfer.Slf4jMavenTransferListener \
+#  -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
+#
+#
+#
+#COPY src ./src
+#
+## Espone la porta standard Spring Boot
+#EXPOSE 8080
+#
+## Per debug remoto, se necessario
+## ENV JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+#
+#CMD ["./mvnw", "spring-boot:run"]
+
+
+# Stage 1: Build con Maven
+FROM eclipse-temurin:21-jdk as builder
+
+WORKDIR /app
+
+# Copia solo file necessari per risolvere le dipendenze
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+
+RUN chmod +x mvnw
+# Scarica le dipendenze (in modalità silenziosa!)
+RUN ./mvnw dependency:go-offline -B
+
+# Copia il codice sorgente
+COPY src ./src
+
+# Compila il progetto
+RUN ./mvnw package -DskipTests -B
+
+
+# Stage 2: Runtime leggero
+FROM eclipse-temurin:21-jre as runtime
+
+WORKDIR /app
+
+# Copia solo il JAR costruito (niente mvnw, pom.xml ecc.)
+COPY --from=builder /app/target/*.jar app.jar
+
+# Espone la porta standard
+EXPOSE 8080
+
+# Avvio dell’app Spring Boot
+CMD ["java", "-jar", "app.jar"]

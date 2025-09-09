@@ -1,0 +1,111 @@
+name: randomfilm
+
+services:
+  randomfilm:
+    # image: "unito/cloud-computing:1.0.0"
+    container_name: "randomfilm"
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile_test
+      args:
+        SPRING_BOOT_ARTIFACT_NAME: "randomfilm"
+        SPRING_BOOT_DATASOURCE_URL: "jdbc:postgresql://db:5432/films"
+        SPRING_BOOT_DATASOURCE_USERNAME: "${POSTGRES_USER}"
+        SPRING_BOOT_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+        TOKENPASSWORD: "${TOKENPASSWORD}"
+    environment:
+      SPRING_BOOT_DATASOURCE_URL: "jdbc:postgresql://db:5432/films"
+      SPRING_BOOT_DATASOURCE_USERNAME: "${POSTGRES_USER}"
+      SPRING_BOOT_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+      DOCKER_DB_SERVICE_NAME: "db"
+      APIDBESTERNO: "${APIDBESTERNO}"
+      TOKENPASSWORD: "${TOKENPASSWORD}"
+    depends_on:
+      db:
+        condition: "service_healthy"
+    # restart: on-failure
+    networks:
+      - randomfilm_net
+    ports:
+      - "8087:8080"
+  users:
+    # image: "unito/cloud-computing:1.0.0"
+    container_name: "users"
+    pull_policy: never
+    build:
+      context: ../users
+      dockerfile: Dockerfile_test
+      args:
+        SPRING_BOOT_ARTIFACT_NAME: "users"
+        SPRING_BOOT_DATASOURCE_URL: "jdbc:postgresql://db:5432/users"
+        SPRING_BOOT_DATASOURCE_USERNAME: "${POSTGRES_USER}"
+        SPRING_BOOT_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+    environment:
+      SPRING_BOOT_DATASOURCE_URL: "jdbc:postgresql://db:5432/users"
+      SPRING_BOOT_DATASOURCE_USERNAME: "${POSTGRES_USER}"
+      SPRING_BOOT_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+
+      DOCKER_DB_SERVICE_NAME: "db"
+    depends_on:
+      db:
+        condition: "service_healthy"
+    # restart: on-failure
+    networks:
+      - randomfilm_net
+    ports:
+      - "8080:8080"
+  db:
+    image: "postgres:13"
+    container_name: "postgresql"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    command: |
+      bash -c "
+      /usr/local/bin/docker-entrypoint.sh postgres &
+      PG_PID=$$!
+      echo 'Waiting for PostgreSQL to be ready...'
+      
+      # Aspetta che PostgreSQL sia pronto ad accettare connessioni
+      until PGPASSWORD=$${POSTGRES_PASSWORD} pg_isready -h 0.0.0.0 -U $${POSTGRES_USER} -d $${POSTGRES_DB}; do
+        echo 'PostgreSQL is not ready yet, waiting...'
+        sleep 2
+      done
+      
+      echo 'PostgreSQL is ready! Creating users database...'
+      PGPASSWORD=$${POSTGRES_PASSWORD} createdb -h 0.0.0.0 -U $${POSTGRES_USER} users || echo 'Database users might already exist'
+      echo 'Database creation completed'
+      wait $$PG_PID
+      "
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready --username ${POSTGRES_USER} --dbname ${POSTGRES_DB}" ]
+      interval: "10s"
+      retries: 5
+      start_period: "30s"
+      timeout: "10s"
+    volumes:
+      - "./pgdata:/var/lib/postgresql/data/"
+    networks:
+      - randomfilm_net
+    ports :
+      - "5432:5432"
+
+
+  frontend:
+    build:
+      context: ../frontend/
+      dockerfile: Dockerfile
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules # Previene problemi con i node_modules locali
+    ports:
+      - "5173:5173"
+    networks:
+      - randomfilm_net
+
+networks:
+  randomfilm_net:
+    name: "randomfilm_net"
+    driver: bridge

@@ -1,0 +1,192 @@
+openapi: 3.0.3
+info:
+  title: Random Film API
+  version: 1.0.0
+  description: API per la gestione di film (con pattern Controller-Service-Repository)
+
+paths:
+  /film/{title}:
+    parameters:
+      - name: title
+        in: path
+        description: titolo del film
+        example: 'Harry Potter'
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Ottieni un film casuale
+      operationId: getFilm
+      tags:
+        - Film
+      responses:
+        '200':
+          description: Film ottenuto con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Film'
+        '404':
+          description: Film non trovato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Inserisci un nuovo film
+      operationId: insertFilm
+      tags:
+        - Film
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Film'
+      responses:
+        '200':
+          description: Film inserito correttamente
+        '400':
+          description: Richiesta non valida (dati mancanti o errati)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Modifica un film esistente
+      operationId: modifyFilm
+      tags:
+        - Film
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Film'
+      responses:
+        '200':
+          description: Film modificato correttamente
+        '400':
+          description: Richiesta non valida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Film non trovato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Rimuovi un film tramite titolo
+      operationId: removeFilm
+      tags:
+        - Film
+      parameters:
+        - name: title
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Film rimosso correttamente
+        '400':
+          description: Parametro title mancante o non valido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Film non trovato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /films:
+    get:
+      summary: Ottieni lista di tutti i film
+      operationId: getFilms
+      tags:
+        - Film
+      responses:
+        '200':
+          description: Lista dei film ottenuta con successo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Film'
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Film:
+      type: object
+      properties:
+        title:
+          type: string
+        year:
+          type: integer
+          format: int32
+        duration:
+          type: integer
+          format: int32
+        director:
+          type: string
+        genre:
+          type: string
+      required:
+        - title
+        - year
+        - duration
+        - director
+        - genre
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Codice HTTP dell'errore
+        message:
+          type: string
+          description: Descrizione dell'errore
+      required:
+        - code
+        - message
